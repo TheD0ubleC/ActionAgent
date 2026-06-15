@@ -112,8 +112,6 @@ ChatGPT の設定から Apps / アプリを開き、GitHub App を検索して G
 @GitHub
 ```
 
-その後、あなたの ActionAgent リポジトリを選択します。
-
 ### 4. まず ChatGPT に ActionAgent のルールを学習させる
 
 次のように送信します。

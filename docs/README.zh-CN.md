@@ -112,8 +112,6 @@ Fork 后，请确认：
 @GitHub
 ```
 
-然后选择你的 ActionAgent 仓库。
-
 ### 4. 让 ChatGPT 先学习 ActionAgent 规则
 
 发送：

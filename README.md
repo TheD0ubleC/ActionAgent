@@ -112,8 +112,6 @@ When repository operations are needed, if the interface supports explicit GitHub
 @GitHub
 ```
 
-Then select your ActionAgent repository.
-
 ### 4. Let ChatGPT learn the ActionAgent rules first
 
 Send:
