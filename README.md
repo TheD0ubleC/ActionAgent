@@ -119,8 +119,8 @@ Then search for the ActionAgent repository. If it shows that the index hasn't be
 Send:
 
 ```text
-@GitHub Please read AGENTS.md in this repository and learn how to use ActionAgent.
-After you finish learning, report back to me directly. Do not execute tasks or modify files.
+@GitHub Please read the AGENTS.md in the ActionAgent repository and learn how to use ActionAgent.  
+Once you've finished learning, please report back to me directly—don't execute any tasks or modify any files.
 ```
 
 After ChatGPT reports that it has finished learning, you can send additional requests to execute tasks.

@@ -119,7 +119,7 @@ Fork 后，请确认：
 发送：
 
 ```text
-@GitHub 请读取这个仓库的 AGENTS.md，学习 ActionAgent 的使用方式。
+@GitHub 请读取 ActionAgent 仓库的 AGENTS.md，学习 ActionAgent 的使用方式。
 学习完成后请直接向我报告，不要执行任务，也不要修改文件。
 ```
 
