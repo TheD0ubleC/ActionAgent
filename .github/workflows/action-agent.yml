@@ -1,0 +1,57 @@
+name: ActionAgent
+
+on:
+  push:
+    paths:
+      - ".action-agent/**"
+      - ".github/action_agent_runner.py"
+      - ".github/workflows/action-agent.yml"
+      - "AGENTS.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: action-agent-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  action-agent:
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[action-agent skip]') }}
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Cache ActionAgent data
+        uses: actions/cache@v4
+        with:
+          path: |
+            .action-agent/cache
+            .action-agent/.venv
+          key: action-agent-${{ runner.os }}-${{ hashFiles('.action-agent/run.toml', '.action-agent/**/*.py') }}
+          restore-keys: |
+            action-agent-${{ runner.os }}-
+
+      - name: Run ActionAgent
+        run: python .github/action_agent_runner.py
+
+      - name: Upload ActionAgent output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: action-agent-output
+          path: .action-agent/output/
+          if-no-files-found: ignore
