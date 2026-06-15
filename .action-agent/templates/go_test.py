@@ -24,6 +24,6 @@ commit = false
 cwd = "."
 shell = "bash"
 continue_on_error = false
-reset_on = "success"
+reset_on = "always"
 after = "always"
 """

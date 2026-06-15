@@ -6,6 +6,7 @@ import shlex
 import subprocess
 import sys
 import time
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -431,25 +432,56 @@ def git_commit(paths: list[Path], message: str) -> None:
         subprocess.run(["git", "push"], check=True)
 
 
+def write_result_file(path: Path, result: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     config = load_toml_file(CONFIG_PATH)
+    run_started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
     max_tasks = int(config.get("max_tasks", 8))
     tasks = discover_tasks(config)
+    result_path = Path(config.get("result_file", ".action-agent/result.json"))
+    commit_result = bool(config.get("commit_result", True))
+    fail_workflow_on_task_failure = bool(deep_get(config, "execution.fail_workflow_on_task_failure", False))
+    result: dict[str, Any] = {
+        "version": 1,
+        "started_at": run_started,
+        "finished_at": None,
+        "status": "running",
+        "failed": False,
+        "message": "",
+        "tasks": [],
+    }
 
     if not tasks:
         print("ActionAgent: no run=true tasks found.")
+        result["status"] = "no_task"
+        result["message"] = "No run=true tasks found."
+        result["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        write_result_file(result_path, result)
+        if commit_result:
+            git_commit([result_path], "action-agent: update result [action-agent skip]")
         return 1 if bool(deep_get(config, "execution.fail_if_no_task", False)) else 0
 
     if len(tasks) > max_tasks:
         print(f"ActionAgent: too many enabled tasks: {len(tasks)} > max_tasks={max_tasks}")
-        return 1
+        result["status"] = "error"
+        result["failed"] = True
+        result["message"] = f"Too many enabled tasks: {len(tasks)} > max_tasks={max_tasks}"
+        result["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        write_result_file(result_path, result)
+        if commit_result:
+            git_commit([result_path], "action-agent: update result [action-agent skip]")
+        return 1 if fail_workflow_on_task_failure else 0
 
     reset_after_run = bool(config.get("reset_after_run", True))
     commit_reset = bool(config.get("commit_reset", True))
     commit_outputs_global = bool(config.get("commit_outputs", False))
     global_continue_on_error = bool(deep_get(config, "execution.continue_on_error", False))
-    default_reset_on = str(deep_get(config, "execution.default_reset_on", "success")).lower()
+    default_reset_on = str(deep_get(config, "execution.default_reset_on", "always")).lower()
 
     failed = False
     reset_paths: list[Path] = []
@@ -457,6 +489,14 @@ def main() -> int:
 
     for task in tasks:
         code, output_path = run_task(config, task)
+        task_result: dict[str, Any] = {
+            "path": str(task.path),
+            "name": str(task.meta.get("name", task.path.stem)),
+            "exit_code": code,
+            "status": "success" if code == 0 else "failed",
+            "output_path": str(output_path) if output_path is not None else None,
+            "reset": False,
+        }
 
         if output_path is not None:
             output_commit = bool(deep_get(task.meta, "output.commit", deep_get(config, "output.commit", commit_outputs_global)))
@@ -470,6 +510,9 @@ def main() -> int:
 
         if should_reset and reset_task_run_flag(task):
             reset_paths.append(task.path)
+            task_result["reset"] = True
+
+        result["tasks"].append(task_result)
 
         continue_on_error = bool(deep_get(task.meta, "execution.continue_on_error", global_continue_on_error))
 
@@ -484,6 +527,13 @@ def main() -> int:
         commit_paths.extend(reset_paths)
     if commit_outputs_global or output_commit_paths:
         commit_paths.extend(output_commit_paths)
+    result["failed"] = failed
+    result["status"] = "failed" if failed else "success"
+    result["message"] = "One or more tasks failed." if failed else "All enabled tasks completed successfully."
+    result["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    write_result_file(result_path, result)
+    if commit_result:
+        commit_paths.append(result_path)
 
     if commit_paths:
         unique_paths = []
@@ -496,7 +546,7 @@ def main() -> int:
 
         git_commit(unique_paths, "action-agent: update runtime state [action-agent skip]")
 
-    return 1 if failed else 0
+    return 1 if failed and fail_workflow_on_task_failure else 0
 
 
 if __name__ == "__main__":

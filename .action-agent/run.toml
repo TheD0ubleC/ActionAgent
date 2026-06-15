@@ -10,6 +10,9 @@ task_dir = ".action-agent/tasks"
 # Output directory for captured task logs.
 output_dir = ".action-agent/output"
 
+# Stable machine-readable result file. AI agents should read this after ActionAgent runs.
+result_file = ".action-agent/result.json"
+
 # Informational platform setting. The workflow currently uses ubuntu-latest.
 platform = "ubuntu-latest"
 
@@ -24,6 +27,7 @@ default_timeout = 600
 # Runtime state behavior.
 reset_after_run = true
 commit_reset = true
+commit_result = true
 commit_outputs = false
 upload_artifact = true
 
@@ -34,9 +38,10 @@ default_run = []
 [execution]
 default_shell = "bash"
 default_cwd = "."
-default_reset_on = "success" # success / always / never
+default_reset_on = "always" # success / always / never
 continue_on_error = false
 fail_if_no_task = false
+fail_workflow_on_task_failure = false
 
 [output]
 mode = "both"       # log / file / both / none

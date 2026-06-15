@@ -62,5 +62,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: action-agent-output
-          path: .action-agent/output/
+          path: |
+            .action-agent/result.json
+            .action-agent/output/
           if-no-files-found: ignore

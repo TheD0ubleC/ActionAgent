@@ -46,7 +46,9 @@ ActionAgent discovers and executes the task
 ↓
 Logs, reports, and artifacts are saved
 ↓
-AI reads the results and reports back to you
+ActionAgent writes `.action-agent/result.json`
+↓
+AI reads the result file and referenced logs, then reports back to you
 ```
 
 You can think of ActionAgent as:
@@ -55,7 +57,7 @@ You can think of ActionAgent as:
 ActionAgent = a remote execution workbench for web-based AI
 ```
 
-Compared with a web-based sandbox, a GitHub Actions Runner is closer to a temporary cloud machine. It can install dependencies, execute system commands, access the network, switch operating systems and architectures, and save execution results as logs or artifacts.
+Compared with a web-based sandbox, a GitHub Actions Runner is closer to a temporary cloud machine. It can install dependencies, execute system commands, access the network, switch operating systems and architectures, and save execution results as a stable result file, logs, or artifacts.
 
 This means web-based AI is no longer limited to “writing commands for you.” Within an authorized scope, it can hand tasks to a real Runner for execution and continue analyzing based on real output.
 
@@ -201,6 +203,7 @@ If ActionAgent does not run, check:
 - Whether the workflow has permission to commit runtime state
 - Whether `.action-agent/scratch.py` or `.action-agent/tasks/*.py` contains `run = true`
 - Whether the task file starts with valid TOML metadata
+- Whether `.action-agent/result.json` was updated
 - Whether there are errors in the GitHub Actions logs
 - Whether logs or artifacts were generated in `.action-agent/output/`
 
@@ -209,6 +212,7 @@ If you think ActionAgent itself has a problem, please submit an Issue with the f
 - Your task file content
 - `AGENTS.md`
 - `.action-agent/run.toml`
+- `.action-agent/result.json`
 - GitHub Actions logs
 - Logs from `.action-agent/output/`
 - Reproduction steps

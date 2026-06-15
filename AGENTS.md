@@ -20,9 +20,39 @@ ActionAgent parses the top TOML metadata block
 ActionAgent executes the configured command lifecycle
 ActionAgent saves logs and artifacts
 ActionAgent resets one-shot run flags
+ActionAgent writes a stable result file
 ```
 
 The agent does **not** need to learn GitHub Actions YAML or edit workflow files for normal tasks.
+
+## Result reading protocol
+
+Do not rely on live GitHub Actions log streams as the primary result channel.
+
+After an ActionAgent run, read:
+
+```text
+.action-agent/result.json
+```
+
+This file is the stable machine-readable result contract. It records:
+
+- overall `status`
+- whether any task `failed`
+- each task file path and name
+- each task `exit_code`
+- each task `output_path`
+- whether the task run flag was reset
+
+Then read the referenced `output_path` file under `.action-agent/output/` when detailed stdout/stderr is needed.
+
+The workflow may still upload `.action-agent/output/` as an artifact, but artifacts and live workflow logs are secondary. The preferred AI loop is:
+
+```text
+write task file -> ActionAgent executes -> ActionAgent writes result.json/log files -> AI reads result.json -> AI reads referenced logs
+```
+
+By default, task failure is represented in `result.json` instead of making the workflow fail. This keeps the result channel readable even when the executed command exits non-zero.
 
 ## Runtime execution model
 
@@ -48,7 +78,8 @@ The runner then:
 6. Sorts enabled tasks by `priority`.
 7. Executes `[commands].before`, `[commands].run`, and `[commands].after` according to the task metadata.
 8. Resets `run = true` to `run = false` when the configured reset policy allows it.
-9. Commits runtime state when configured to do so.
+9. Writes `.action-agent/result.json` with task status, exit codes, output paths, and reset state.
+10. Commits runtime state when configured to do so.
 
 ActionAgent does **not** automatically execute the Python code below the TOML block merely because a task file was discovered.
 
@@ -150,7 +181,7 @@ commit = false
 cwd = "."
 shell = "bash"
 continue_on_error = false
-reset_on = "success"
+reset_on = "always"
 """
 ```
 
@@ -185,7 +216,7 @@ commit = false
 cwd = "."
 shell = "bash"
 continue_on_error = false
-reset_on = "success"
+reset_on = "always"
 """
 
 print("This Python code runs because commands.run invokes this file.")
@@ -360,6 +391,14 @@ Do not pretend the chat environment has changed platforms. The configured GitHub
 
 ## Output behavior
 
+ActionAgent writes a machine-readable result file by default:
+
+```text
+.action-agent/result.json
+```
+
+Treat this as the primary status channel. It is intended for AI agents to read after the runner finishes.
+
 Recommended default:
 
 ```toml
@@ -380,6 +419,8 @@ Output modes:
 Prefer `artifact = true` and `commit = false`.
 
 The workflow uploads `.action-agent/output/` as the ActionAgent artifact. Therefore, useful logs, reports, packages, and build products should be copied or written under `.action-agent/output/`.
+
+The result file points to the relevant log files in `.action-agent/output/`.
 
 Do not rely on `artifact = true` to upload arbitrary paths outside `.action-agent/output/` unless the runtime explicitly supports that behavior. Treat `artifact = true` as task intent metadata and place actual artifact files in the output directory.
 
@@ -447,16 +488,16 @@ Use:
 
 ```toml
 [execution]
-reset_on = "success"
+reset_on = "always"
 ```
 
 Allowed values:
 
-- `success`: reset `run = true` only after the task succeeds. Recommended.
-- `always`: reset after the task finishes, even if it fails.
+- `always`: reset after the task finishes, even if it fails. Recommended default so failed one-shot tasks do not keep re-running forever.
+- `success`: reset `run = true` only after the task succeeds.
 - `never`: do not reset automatically.
 
-Prefer `success`. If a task fails, leaving `run = true` lets the agent fix the task and push again.
+Prefer `always` for normal one-shot and reusable tasks. Use `success` only when the task should intentionally remain enabled after failure for immediate retry/debugging.
 
 ## Environment variables
 
@@ -528,7 +569,7 @@ commit = false
 cwd = "."
 shell = "bash"
 continue_on_error = false
-reset_on = "success"
+reset_on = "always"
 """
 
 print("ActionAgent scratch task started")
@@ -561,7 +602,7 @@ commit = false
 cwd = "."
 shell = "bash"
 continue_on_error = false
-reset_on = "success"
+reset_on = "always"
 """
 ```
 
