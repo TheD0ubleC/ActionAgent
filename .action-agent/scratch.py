@@ -1,5 +1,5 @@
 """
-run = true
+run = false
 name = "Ping google.com"
 reason = "Test external network reachability using ping"
 timeout = 300
