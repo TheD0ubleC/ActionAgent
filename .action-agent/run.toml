@@ -47,3 +47,5 @@ fail_workflow_on_task_failure = false
 mode = "both"       # log / file / both / none
 artifact = true
 commit = false
+excerpt_bytes = 20000
+failed_excerpt_bytes = 100000

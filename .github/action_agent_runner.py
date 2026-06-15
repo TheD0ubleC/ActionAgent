@@ -437,6 +437,28 @@ def write_result_file(path: Path, result: dict[str, Any]) -> None:
     path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def read_output_excerpt(path: Path, max_bytes: int) -> str:
+    if max_bytes <= 0 or not path.exists() or not path.is_file():
+        return ""
+
+    with path.open("rb") as file:
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(max(0, size - max_bytes))
+        data = file.read()
+
+    text = data.decode("utf-8", errors="replace")
+    if len(data) == max_bytes:
+        return "[output truncated to last bytes]\n" + text
+    return text
+
+
+def output_size(path: Path | None) -> int | None:
+    if path is None or not path.exists() or not path.is_file():
+        return None
+    return path.stat().st_size
+
+
 def main() -> int:
     config = load_toml_file(CONFIG_PATH)
     run_started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -458,12 +480,6 @@ def main() -> int:
 
     if not tasks:
         print("ActionAgent: no run=true tasks found.")
-        result["status"] = "no_task"
-        result["message"] = "No run=true tasks found."
-        result["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        write_result_file(result_path, result)
-        if commit_result:
-            git_commit([result_path], "action-agent: update result [action-agent skip]")
         return 1 if bool(deep_get(config, "execution.fail_if_no_task", False)) else 0
 
     if len(tasks) > max_tasks:
@@ -482,6 +498,8 @@ def main() -> int:
     commit_outputs_global = bool(config.get("commit_outputs", False))
     global_continue_on_error = bool(deep_get(config, "execution.continue_on_error", False))
     default_reset_on = str(deep_get(config, "execution.default_reset_on", "always")).lower()
+    output_excerpt_bytes = int(deep_get(config, "output.excerpt_bytes", 20000))
+    failed_output_excerpt_bytes = int(deep_get(config, "output.failed_excerpt_bytes", output_excerpt_bytes))
 
     failed = False
     reset_paths: list[Path] = []
@@ -489,19 +507,39 @@ def main() -> int:
 
     for task in tasks:
         code, output_path = run_task(config, task)
+        output_commit = False
+        output_artifact = False
+        output_exists = output_path.exists() if output_path is not None else False
+        task_excerpt_bytes = failed_output_excerpt_bytes if code != 0 else output_excerpt_bytes
+
+        if output_path is not None:
+            output_commit = bool(deep_get(task.meta, "output.commit", deep_get(config, "output.commit", commit_outputs_global)))
+            output_artifact = bool(deep_get(task.meta, "output.artifact", deep_get(config, "output.artifact", True)))
+            task_excerpt_bytes = int(
+                deep_get(
+                    task.meta,
+                    "output.failed_excerpt_bytes" if code != 0 else "output.excerpt_bytes",
+                    task_excerpt_bytes,
+                )
+            )
+
         task_result: dict[str, Any] = {
             "path": str(task.path),
             "name": str(task.meta.get("name", task.path.stem)),
             "exit_code": code,
             "status": "success" if code == 0 else "failed",
             "output_path": str(output_path) if output_path is not None else None,
+            "output_exists": output_exists,
+            "output_size_bytes": output_size(output_path),
+            "output_committed": output_commit,
+            "output_artifact": output_artifact,
+            "output_excerpt_bytes": task_excerpt_bytes,
+            "output_excerpt": read_output_excerpt(output_path, task_excerpt_bytes) if output_path is not None else "",
             "reset": False,
         }
 
-        if output_path is not None:
-            output_commit = bool(deep_get(task.meta, "output.commit", deep_get(config, "output.commit", commit_outputs_global)))
-            if output_commit:
-                output_commit_paths.append(output_path)
+        if output_path is not None and output_commit:
+            output_commit_paths.append(output_path)
 
         reset_on = str(deep_get(task.meta, "execution.reset_on", default_reset_on)).lower()
         should_reset = reset_after_run and (

@@ -48,7 +48,7 @@ ActionAgent 发现并执行任务
 ↓
 ActionAgent 写入 `.action-agent/result.json`
 ↓
-AI 读取结果文件和相关日志，并向你报告
+AI 读取结果文件、日志摘录和相关日志，并向你报告
 ```
 
 你可以把 ActionAgent 理解成：
@@ -58,6 +58,8 @@ ActionAgent = 给网页端 AI 使用的远程执行工作台
 ```
 
 相比网页端沙盒，GitHub Actions Runner 更接近一台临时云主机。它可以安装依赖、执行系统命令、访问网络、切换操作系统和架构，并把执行结果保存为稳定的结果文件、日志或 artifact。
+
+默认情况下，ActionAgent 会在有任务运行时把截断后的日志摘录提交到 `.action-agent/result.json`，完整日志保存在 artifact 中。如果没有任何 `run = true` 任务，它会直接退出，不修改仓库状态。确实需要让完整日志进入仓库时，任务可以通过 `[output].commit = true` 显式开启。
 
 这使得网页端 AI 不再只是“给你写命令”，而是可以在授权范围内帮你把任务交给真实 Runner 执行，并基于真实输出继续分析。
 

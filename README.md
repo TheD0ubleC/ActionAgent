@@ -48,7 +48,7 @@ Logs, reports, and artifacts are saved
 ↓
 ActionAgent writes `.action-agent/result.json`
 ↓
-AI reads the result file and referenced logs, then reports back to you
+AI reads the result file, log excerpt, and referenced logs, then reports back to you
 ```
 
 You can think of ActionAgent as:
@@ -58,6 +58,8 @@ ActionAgent = a remote execution workbench for web-based AI
 ```
 
 Compared with a web-based sandbox, a GitHub Actions Runner is closer to a temporary cloud machine. It can install dependencies, execute system commands, access the network, switch operating systems and architectures, and save execution results as a stable result file, logs, or artifacts.
+
+By default, ActionAgent commits a bounded log excerpt in `.action-agent/result.json` when a task runs and keeps full logs as artifacts. If there are no `run = true` tasks, it exits without changing repository state. Tasks can opt in to committing full logs with `[output].commit = true` when the complete repository-visible log is needed.
 
 This means web-based AI is no longer limited to “writing commands for you.” Within an authorized scope, it can hand tasks to a real Runner for execution and continue analyzing based on real output.
 

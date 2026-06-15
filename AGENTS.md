@@ -35,6 +35,8 @@ After an ActionAgent run, read:
 .action-agent/result.json
 ```
 
+ActionAgent updates this file only when at least one task is selected for execution. If there are no `run = true` tasks, the runner exits without changing repository state.
+
 This file is the stable machine-readable result contract. It records:
 
 - overall `status`
@@ -42,9 +44,14 @@ This file is the stable machine-readable result contract. It records:
 - each task file path and name
 - each task `exit_code`
 - each task `output_path`
+- whether the output log exists, is committed, or is artifact-only
+- output log size and configured excerpt size
+- an `output_excerpt` with the tail of the captured log
 - whether the task run flag was reset
 
-Then read the referenced `output_path` file under `.action-agent/output/` when detailed stdout/stderr is needed.
+Use `output_excerpt` first. Then read the referenced `output_path` file under `.action-agent/output/` only when `output_committed = true`. If `output_committed = false` and `output_artifact = true`, the full log is available as a GitHub Actions artifact, not as a repository file.
+
+AI agents may opt in to committing full logs by setting task-level `[output].commit = true` or global `commit_outputs = true`. Do this only when the full log is genuinely needed and expected to be safe and reasonably small. When not configured, ActionAgent still captures all stdout/stderr but commits only bounded excerpts through `.action-agent/result.json`.
 
 The workflow may still upload `.action-agent/output/` as an artifact, but artifacts and live workflow logs are secondary. The preferred AI loop is:
 
@@ -78,7 +85,7 @@ The runner then:
 6. Sorts enabled tasks by `priority`.
 7. Executes `[commands].before`, `[commands].run`, and `[commands].after` according to the task metadata.
 8. Resets `run = true` to `run = false` when the configured reset policy allows it.
-9. Writes `.action-agent/result.json` with task status, exit codes, output paths, and reset state.
+9. Writes `.action-agent/result.json` with task status, exit codes, output paths, and reset state if any task ran.
 10. Commits runtime state when configured to do so.
 
 ActionAgent does **not** automatically execute the Python code below the TOML block merely because a task file was discovered.
@@ -328,6 +335,8 @@ Python body = task-specific logic
 [commands].after = cleanup or final summary
 ```
 
+If Python code runs subprocesses, propagate the subprocess exit code when that subprocess determines task success. For example, call `raise SystemExit(completed.returncode)` or use `subprocess.run(..., check=True)`. Otherwise the Python script may exit with 0 even when the command it ran failed.
+
 ## Execution environment
 
 ActionAgent runs inside a GitHub Actions job.
@@ -421,6 +430,12 @@ Prefer `artifact = true` and `commit = false`.
 The workflow uploads `.action-agent/output/` as the ActionAgent artifact. Therefore, useful logs, reports, packages, and build products should be copied or written under `.action-agent/output/`.
 
 The result file points to the relevant log files in `.action-agent/output/`.
+
+The result file also includes `output_excerpt`, a bounded tail of the captured log. This is the preferred first place to read command output because full log files may be artifact-only when `output.commit = false`.
+
+Excerpt size is controlled by `[output].excerpt_bytes`; failed tasks can use a larger `[output].failed_excerpt_bytes`. The global defaults live in `.action-agent/run.toml`, and individual tasks may override them under their own `[output]` table.
+
+Full log commit is controlled separately by `commit_outputs = true` globally or `[output].commit = true` per task. Prefer excerpts by default; opt in to full log commits only when the user needs repository-visible complete logs.
 
 Do not rely on `artifact = true` to upload arbitrary paths outside `.action-agent/output/` unless the runtime explicitly supports that behavior. Treat `artifact = true` as task intent metadata and place actual artifact files in the output directory.
 
