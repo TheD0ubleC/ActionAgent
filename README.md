@@ -155,7 +155,7 @@ Recommended approach:
 
 4. Tell the AI the exact Secret names you added, such as `SSH_HOST`, `SSH_USER`, or `SSH_PRIVATE_KEY`
 
-The AI should prepare ActionAgent to use those names without asking for the Secret values.
+The AI should prepare ActionAgent to use those names before writing the task, without asking for the Secret values.
 
 Please note:
 

@@ -109,11 +109,23 @@ The agent should normally avoid editing:
 
 Those files are ActionAgent runtime infrastructure.
 
-`normally avoid` does not mean `never edit`. Runtime infrastructure may be edited only when the user explicitly asks for a runtime-level change or when the task cannot be expressed correctly with task files alone. Examples include changing the runner platform, changing global runtime defaults, or modifying the ActionAgent implementation itself.
+`normally avoid` does not mean `never edit`. Runtime infrastructure may be edited only when the user explicitly asks for a runtime-level change, when the task cannot be expressed correctly with task files alone, or when GitHub Secret injection is required. Examples include changing the runner platform, changing global runtime defaults, modifying the ActionAgent implementation itself, or mapping a user-named GitHub Secret into the `Run ActionAgent` step.
 
-Secret injection is a workflow-level concern. GitHub repository secrets do not automatically appear in task environments; they must be explicitly mapped in `.github/workflows/action-agent.yml`.
+### Secret injection exception
 
-Before writing or updating a task that reads a secret-backed environment variable, inspect `.github/workflows/action-agent.yml` and confirm the `Run ActionAgent` step maps that environment variable. If it is missing and the user has provided the exact GitHub Secret name, edit only that step's secret injection area. Add references such as:
+This section overrides the general preference to avoid editing `.github/workflows/action-agent.yml`.
+
+GitHub repository secrets do not automatically appear in task environments. They must be explicitly mapped in `.github/workflows/action-agent.yml`.
+
+If a user request mentions GitHub Secrets, SSH credentials stored in Secrets, tokens stored in Secrets, or any secret-backed environment variable, the agent MUST do this before writing the task file:
+
+1. Inspect `.github/workflows/action-agent.yml`.
+2. Find the `Run ActionAgent` step.
+3. Check whether each required environment variable is already mapped in that step.
+4. If a mapping is missing and the user supplied the exact GitHub Secret name, edit only that step's secret injection area.
+5. Only after the mapping is correct, create or update `.action-agent/scratch.py` or `.action-agent/tasks/*.py`.
+
+Add workflow references such as:
 
 ```yaml
 env:
@@ -125,6 +137,8 @@ Do not leave an empty `env:` block in workflow YAML. If no secrets are currently
 Never write secret values into workflow files, task files, docs, logs, or `[env]` metadata. Do not broaden workflow permissions or change runner logic just to expose a secret.
 
 Ask the user for the exact GitHub Secret names they created when the names are not already clear. Map only those names, preserving spelling and case. Do not invent secret names and do not try to discover secret values.
+
+If the user says a secret named `SSH` contains `name@host:port`, and another secret named `SSH_PRIVATE_KEY` contains the key, map exactly `SSH` and `SSH_PRIVATE_KEY` unless the user asks for different environment variable names.
 
 When possible, prefer solving the user's request by editing task files rather than runtime infrastructure.
 
@@ -643,14 +657,15 @@ reset_on = "always"
 When the user asks to verify, test, inspect, benchmark, build, request, reproduce, or execute something:
 
 1. Decide whether the task is one-shot or reusable.
-2. Use `.action-agent/scratch.py` for one-shot tasks.
-3. Use `.action-agent/tasks/*.py` only for reusable tasks.
-4. Set `run = true` when the task should execute now.
-5. Use `[commands].before` for setup and dependency installation.
-6. Use `[commands].run` for the executable entry point.
-7. If task logic is in Python, make `[commands].run` invoke the task file explicitly.
-8. Save useful output to `.action-agent/output/`.
-9. Keep the task simple, explicit, bounded, and safe.
+2. If the task needs GitHub Secrets or secret-backed environment variables, complete the Secret injection exception workflow before editing the task file.
+3. Use `.action-agent/scratch.py` for one-shot tasks.
+4. Use `.action-agent/tasks/*.py` only for reusable tasks.
+5. Set `run = true` when the task should execute now.
+6. Use `[commands].before` for setup and dependency installation.
+7. Use `[commands].run` for the executable entry point.
+8. If task logic is in Python, make `[commands].run` invoke the task file explicitly.
+9. Save useful output to `.action-agent/output/`.
+10. Keep the task simple, explicit, bounded, and safe.
 
 ## Runtime directories
 

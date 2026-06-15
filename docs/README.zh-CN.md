@@ -155,7 +155,7 @@ ChatGPT 报告学习完成后，就可以继续发送执行任务的请求。
 
 4. 告诉 AI 你添加的准确 Secret 名称，例如 `SSH_HOST`、`SSH_USER` 或 `SSH_PRIVATE_KEY`
 
-AI 应根据这些名称准备 ActionAgent 的任务执行环境，不需要也不应该询问 Secret 的真实值。
+AI 应先根据这些名称准备 ActionAgent 的任务执行环境，再编写任务；它不需要也不应该询问 Secret 的真实值。
 
 需要注意：
 
