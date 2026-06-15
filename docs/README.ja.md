@@ -152,11 +152,9 @@ ChatGPT が学習完了を報告したら、続けてタスク実行の依頼を
    - `SSH_PRIVATE_KEY`
    - `API_TOKEN`
 
-4. ActionAgent タスクが GitHub Actions Runner 内でこれらの Secrets を環境変数として使用できるようにする
+4. 追加した正確な Secret 名を AI に伝える。例: `SSH_HOST`、`SSH_USER`、`SSH_PRIVATE_KEY`
 
-ActionAgent が読み取れるのは、workflow が runner 環境へ明示的に注入した secrets だけです。デフォルトでは、リポジトリ secrets は注入されません。タスクで secret が必要な場合は、`Run ActionAgent` step の `env:` に `${{ secrets.NAME }}` 参照を追加してください。
-
-GitHub で Secrets を作成した後は、追加した正確な Secret 名を AI に伝えてください。例: `SSH_HOST`、`SSH_USER`、`SSH_PRIVATE_KEY`。AI は `AGENTS.md` に従って workflow のマッピングを更新します。Secret の実際の値は不要であり、尋ねるべきではありません。
+AI はそれらの名前を使えるように ActionAgent の実行環境を準備します。Secret の実際の値は不要であり、尋ねるべきではありません。
 
 注意事項:
 

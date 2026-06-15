@@ -113,11 +113,14 @@ Those files are ActionAgent runtime infrastructure.
 
 Secret injection is a workflow-level concern. GitHub repository secrets do not automatically appear in task environments; they must be explicitly mapped in `.github/workflows/action-agent.yml`.
 
-When the user explicitly asks to use a GitHub Secret that is not currently available to tasks, the agent may edit only the `Run ActionAgent` step's `env:` secret injection area. Add references such as:
+Before writing or updating a task that reads a secret-backed environment variable, inspect `.github/workflows/action-agent.yml` and confirm the `Run ActionAgent` step maps that environment variable. If it is missing and the user has provided the exact GitHub Secret name, edit only that step's secret injection area. Add references such as:
 
 ```yaml
-MY_SECRET: ${{ secrets.MY_SECRET }}
+env:
+  MY_SECRET: ${{ secrets.MY_SECRET }}
 ```
+
+Do not leave an empty `env:` block in workflow YAML. If no secrets are currently mapped, the workflow should contain only comments and the `run:` command.
 
 Never write secret values into workflow files, task files, docs, logs, or `[env]` metadata. Do not broaden workflow permissions or change runner logic just to expose a secret.
 
