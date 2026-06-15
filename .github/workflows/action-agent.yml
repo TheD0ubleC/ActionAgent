@@ -55,6 +55,12 @@ jobs:
             action-agent-${{ runner.os }}-
 
       - name: Run ActionAgent
+        env:
+          # ActionAgent secret injection area.
+          # Add only explicit GitHub Secrets references here when a task needs them.
+          # Example:
+          # SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Never write secret values.
         run: python .github/action_agent_runner.py
 
       - name: Upload ActionAgent output

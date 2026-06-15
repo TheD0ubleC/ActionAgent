@@ -155,6 +155,10 @@ ChatGPT 报告学习完成后，就可以继续发送执行任务的请求。
 
 4. 让 ActionAgent 任务在 GitHub Actions Runner 中通过环境变量使用这些 Secrets
 
+ActionAgent 只能读取 workflow 显式注入到 runner 环境中的 secrets。默认情况下不会注入任何仓库 secrets。任务确实需要 secret 时，请在 `Run ActionAgent` step 的 `env:` 中添加 `${{ secrets.NAME }}` 引用。
+
+在 GitHub 中创建 Secrets 后，请告诉 AI 你添加的准确 Secret 名称，例如 `SSH_HOST`、`SSH_USER` 和 `SSH_PRIVATE_KEY`。AI 应根据 `AGENTS.md` 更新 workflow 映射；它不需要也不应该询问 Secret 的真实值。
+
 需要注意：
 
 - ChatGPT 不应该看到 Secrets 的真实内容

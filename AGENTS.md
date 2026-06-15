@@ -111,6 +111,18 @@ Those files are ActionAgent runtime infrastructure.
 
 `normally avoid` does not mean `never edit`. Runtime infrastructure may be edited only when the user explicitly asks for a runtime-level change or when the task cannot be expressed correctly with task files alone. Examples include changing the runner platform, changing global runtime defaults, or modifying the ActionAgent implementation itself.
 
+Secret injection is a workflow-level concern. GitHub repository secrets do not automatically appear in task environments; they must be explicitly mapped in `.github/workflows/action-agent.yml`.
+
+When the user explicitly asks to use a GitHub Secret that is not currently available to tasks, the agent may edit only the `Run ActionAgent` step's `env:` secret injection area. Add references such as:
+
+```yaml
+MY_SECRET: ${{ secrets.MY_SECRET }}
+```
+
+Never write secret values into workflow files, task files, docs, logs, or `[env]` metadata. Do not broaden workflow permissions or change runner logic just to expose a secret.
+
+Ask the user for the exact GitHub Secret names they created when the names are not already clear. Map only those names, preserving spelling and case. Do not invent secret names and do not try to discover secret values.
+
 When possible, prefer solving the user's request by editing task files rather than runtime infrastructure.
 
 ## One-shot task vs reusable task
@@ -534,6 +546,8 @@ ACTION_AGENT_OUTPUT
 Use `ACTION_AGENT_OUTPUT` in scripts when the output path should follow the configured task metadata.
 
 Do not place secrets in `[env]`. Use GitHub Actions secrets or preconfigured runtime credentials instead.
+
+GitHub Secrets must be exposed to ActionAgent through the workflow `env:` mapping before tasks can read them from `os.environ`. Task files can use environment variable names such as `SSH_HOST` or `SSH_PRIVATE_KEY`, but they cannot access the GitHub Secrets store directly.
 
 ## Safety rules
 

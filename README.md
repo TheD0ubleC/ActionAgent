@@ -155,6 +155,10 @@ Recommended approach:
 
 4. Let ActionAgent tasks use these Secrets as environment variables in the GitHub Actions Runner
 
+ActionAgent can only read secrets that the workflow explicitly maps into the runner environment. By default, no repository secrets are injected. When a task needs a secret, add a reference to the `Run ActionAgent` step's `env:` block using `${{ secrets.NAME }}`.
+
+After creating Secrets in GitHub, tell the AI the exact Secret names you added, for example `SSH_HOST`, `SSH_USER`, and `SSH_PRIVATE_KEY`. The AI should then update the workflow mapping according to `AGENTS.md`; it does not need and should not ask for the Secret values.
+
 Please note:
 
 - ChatGPT should not see the actual contents of Secrets
