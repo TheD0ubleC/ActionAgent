@@ -1,5 +1,5 @@
 """
-run = true
+run = false
 name = "Scratch write test"
 reason = "Verify ActionAgent scratch write without network command"
 timeout = 300
