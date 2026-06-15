@@ -29,11 +29,20 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Read ActionAgent config
+        id: action_agent_config
+        shell: bash
+        run: |
+          python_version="$(sed -nE 's/^[[:space:]]*python_version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' .action-agent/run.toml | head -n 1)"
+          if [ -z "$python_version" ]; then
+            python_version="3.12"
+          fi
+          echo "python_version=$python_version" >> "$GITHUB_OUTPUT"
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          cache: "pip"
+          python-version: ${{ steps.action_agent_config.outputs.python_version }}
 
       - name: Cache ActionAgent data
         uses: actions/cache@v4

@@ -13,6 +13,10 @@ output_dir = ".action-agent/output"
 # Informational platform setting. The workflow currently uses ubuntu-latest.
 platform = "ubuntu-latest"
 
+# Python version used by the ActionAgent workflow setup step.
+# AI agents may change this when a task requires a different Python version.
+python_version = "3.12"
+
 # Safety limits.
 max_tasks = 8
 default_timeout = 600
