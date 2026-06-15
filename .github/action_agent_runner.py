@@ -459,6 +459,17 @@ def output_size(path: Path | None) -> int | None:
     return path.stat().st_size
 
 
+def workflow_run_url() -> str | None:
+    server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com").strip().rstrip("/")
+    repository = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    run_id = os.environ.get("GITHUB_RUN_ID", "").strip()
+
+    if not repository or not run_id:
+        return None
+
+    return f"{server_url}/{repository}/actions/runs/{run_id}"
+
+
 def main() -> int:
     config = load_toml_file(CONFIG_PATH)
     run_started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -472,6 +483,7 @@ def main() -> int:
         "version": 1,
         "started_at": run_started,
         "finished_at": None,
+        "workflow_run_url": workflow_run_url(),
         "status": "running",
         "failed": False,
         "message": "",
