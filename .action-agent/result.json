@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "started_at": null,
-  "finished_at": null,
-  "status": "not_run",
+  "started_at": "2026-06-15T10:44:32Z",
+  "finished_at": "2026-06-15T10:44:32Z",
+  "status": "no_task",
   "failed": false,
-  "message": "ActionAgent has not written a runtime result yet.",
+  "message": "No run=true tasks found.",
   "tasks": []
 }
