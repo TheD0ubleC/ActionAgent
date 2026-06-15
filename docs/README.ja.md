@@ -112,6 +112,8 @@ ChatGPT の設定から Apps / アプリを開き、GitHub App を検索して G
 @GitHub
 ```
 
+次に ActionAgent リポジトリを検索して、まだインデックスが作成されていないと表示されたら ActionAgent リポジトリをクリックして、表示されたページで `GitHub 上でインデックスをトリガー` をクリックします。その後、5 分待てば続けられます。
+
 ### 4. まず ChatGPT に ActionAgent のルールを学習させる
 
 次のように送信します。

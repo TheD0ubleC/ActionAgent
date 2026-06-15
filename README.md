@@ -112,6 +112,8 @@ When repository operations are needed, if the interface supports explicit GitHub
 @GitHub
 ```
 
+Then search for the ActionAgent repository. If it shows that the index hasn't been built yet, click on the ActionAgent repository, and then on the page that pops up, click `Trigger index on GitHub`. After that, just wait for 5 minutes before continuing.
+
 ### 4. Let ChatGPT learn the ActionAgent rules first
 
 Send:

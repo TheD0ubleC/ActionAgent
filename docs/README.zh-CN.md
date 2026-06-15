@@ -112,6 +112,8 @@ Fork 后，请确认：
 @GitHub
 ```
 
+然后搜索 ActionAgent 仓库，如果显示尚未建立索引请点击 ActionAgent 仓库，随后在弹出的页面中点击`在 GitHub 上触发索引`，随后等待 5 分钟即可继续。
+
 ### 4. 让 ChatGPT 先学习 ActionAgent 规则
 
 发送：
