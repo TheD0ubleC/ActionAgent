@@ -1,9 +1,3 @@
-# ActionAgent runtime output
-.action-agent/output/
-.action-agent/cache/
-.action-agent/tmp/
-.action-agent/.venv/
-
 # Python
 __pycache__/
 *.pyc
