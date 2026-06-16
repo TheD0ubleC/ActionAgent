@@ -437,20 +437,36 @@ def write_result_file(path: Path, result: dict[str, Any]) -> None:
     path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def read_output_excerpt(path: Path, max_bytes: int) -> str:
-    if max_bytes <= 0 or not path.exists() or not path.is_file():
-        return ""
+def read_output_excerpt_info(path: Path | None, max_bytes: int) -> dict[str, Any]:
+    if path is None or max_bytes <= 0 or not path.exists() or not path.is_file():
+        return {
+            "text": "",
+            "bytes": max(0, max_bytes),
+            "truncated": False,
+            "source_size_bytes": output_size(path),
+        }
+
+    source_size = path.stat().st_size
 
     with path.open("rb") as file:
-        file.seek(0, os.SEEK_END)
-        size = file.tell()
-        file.seek(max(0, size - max_bytes))
+        file.seek(max(0, source_size - max_bytes))
         data = file.read()
 
+    truncated = source_size > max_bytes
     text = data.decode("utf-8", errors="replace")
-    if len(data) == max_bytes:
-        return "[output truncated to last bytes]\n" + text
-    return text
+    if truncated:
+        text = f"[output truncated to last {max_bytes} bytes]\n" + text
+
+    return {
+        "text": text,
+        "bytes": max_bytes,
+        "truncated": truncated,
+        "source_size_bytes": source_size,
+    }
+
+
+def read_output_excerpt(path: Path | None, max_bytes: int) -> str:
+    return str(read_output_excerpt_info(path, max_bytes).get("text", ""))
 
 
 def output_size(path: Path | None) -> int | None:
@@ -512,6 +528,10 @@ def main() -> int:
     default_reset_on = str(deep_get(config, "execution.default_reset_on", "always")).lower()
     output_excerpt_bytes = int(deep_get(config, "output.excerpt_bytes", 20000))
     failed_output_excerpt_bytes = int(deep_get(config, "output.failed_excerpt_bytes", output_excerpt_bytes))
+    comment_success_excerpt_bytes = int(deep_get(config, "comment.success_excerpt_bytes", 6000))
+    comment_failed_excerpt_bytes = int(
+        deep_get(config, "comment.failed_excerpt_bytes", comment_success_excerpt_bytes)
+    )
 
     failed = False
     reset_paths: list[Path] = []
@@ -535,6 +555,16 @@ def main() -> int:
                 )
             )
 
+        result_excerpt = read_output_excerpt_info(output_path, task_excerpt_bytes)
+        comment_excerpt_bytes = int(
+            deep_get(
+                task.meta,
+                "comment.failed_excerpt_bytes" if code != 0 else "comment.success_excerpt_bytes",
+                comment_failed_excerpt_bytes if code != 0 else comment_success_excerpt_bytes,
+            )
+        )
+        comment_excerpt = read_output_excerpt_info(output_path, comment_excerpt_bytes)
+
         task_result: dict[str, Any] = {
             "path": str(task.path),
             "name": str(task.meta.get("name", task.path.stem)),
@@ -545,8 +575,14 @@ def main() -> int:
             "output_size_bytes": output_size(output_path),
             "output_committed": output_commit,
             "output_artifact": output_artifact,
-            "output_excerpt_bytes": task_excerpt_bytes,
-            "output_excerpt": read_output_excerpt(output_path, task_excerpt_bytes) if output_path is not None else "",
+            "output_excerpt_bytes": result_excerpt["bytes"],
+            "output_excerpt_truncated": result_excerpt["truncated"],
+            "output_excerpt_source_size_bytes": result_excerpt["source_size_bytes"],
+            "output_excerpt": result_excerpt["text"],
+            "comment_excerpt_bytes": comment_excerpt["bytes"],
+            "comment_excerpt_truncated": comment_excerpt["truncated"],
+            "comment_excerpt_source_size_bytes": comment_excerpt["source_size_bytes"],
+            "comment_excerpt": comment_excerpt["text"],
             "reset": False,
         }
 

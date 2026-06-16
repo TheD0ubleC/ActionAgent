@@ -132,11 +132,61 @@ run = ["python .action-agent/scratch.py"]
 
 If Python code runs subprocesses, propagate the subprocess exit code when that subprocess determines task success. Use `raise SystemExit(completed.returncode)` or `subprocess.run(..., check=True)`.
 
+
+## Polling after triggering ActionAgent
+
+After setting a task `run = true` and committing it, do not assume the GitHub Actions run has finished immediately. Poll in short, explicit steps.
+
+Preferred polling loop for ChatGPT-style agents:
+
+1. Wait once with a single short shell command:
+
+   ```bash
+   sleep 10
+   ```
+
+2. Re-read the task file that was enabled and check whether `run` has been reset to `false`.
+3. If `run = true`, treat the task as still running or not yet reset. Wait another single `sleep 10` and check again.
+4. Once `run = false`, read results in the normal order: latest marked issue comment, then `.action-agent/result.json`, then artifact or committed output.
+5. If the visible result appears stale, wait one more `sleep 10` and retry the result read.
+6. Stop after the user-requested maximum wait time, or after a reasonable bounded number of polling attempts, and report that the run may still be pending or failed to update.
+
+Do not use long sleeps such as `sleep 30`, `sleep 50`, or `sleep 60` in one tool call. Do not chain many sleeps in one shell command, such as `sleep 10 && sleep 10 && sleep 10`. Do not place long local polling loops in one Python process. Short single-step polling is more reliable and lets the agent observe state between waits.
+
+Use GitHub state, not elapsed time alone, as the completion signal. Good completion signals are:
+
+```text
+run=true changed back to run=false in the task metadata
+a fresh issue comment containing <!-- action-agent-result:v1 -->
+a fresh .action-agent/result.json written by the latest run
+a completed workflow run with the expected artifact
+```
+
+If these signals disagree, prefer the freshest marked issue comment for human-readable status, then use `.action-agent/result.json` for structured fallback, and use artifacts for complete logs.
+
 ## Output protocol
 
 Do not rely on live GitHub Actions log streams as the primary result channel.
 
-After a task run, read:
+ActionAgent treats captured output as one source with three projections:
+
+```text
+full task log -> result excerpt in .action-agent/result.json
+full task log -> comment excerpt in the issue result comment
+full task log -> artifact or committed output file when enabled
+```
+
+The issue comment is the preferred human-readable result channel when `[comment].enabled = true`. Read the latest marked ActionAgent result comment first, then fall back to `.action-agent/result.json`, then use the artifact or committed output path when complete logs are needed.
+
+Marked ActionAgent result comments contain:
+
+```text
+<!-- action-agent-result:v1 -->
+```
+
+When reading an issue, ignore unmarked human discussion unless the user asks for conversation context. From newest to oldest, find the latest comment containing the marker above and use it as the current run summary.
+
+After a task run, the stable machine-readable fallback is:
 
 ```text
 .action-agent/result.json
@@ -144,9 +194,54 @@ After a task run, read:
 
 ActionAgent updates this file only when at least one task is selected for execution. If there are no `run = true` tasks, the runner exits without changing repository state.
 
-Use `output_excerpt` first. Read the referenced `output_path` only when `output_committed = true`. If `output_committed = false` and `output_artifact = true`, the full log is available as a GitHub Actions artifact, not as a repository file.
+Use `comment_excerpt` from the latest issue comment for quick human-facing summaries. Use `output_excerpt` in `.action-agent/result.json` when more diagnostic detail is needed. Both excerpts are generated directly from the complete task log, not by truncating one excerpt from another.
 
-AI agents may opt in to full log commits by setting task-level `[output].commit = true` or global `commit_outputs = true`, but only when the full log is genuinely needed, safe, and reasonably small. By default, ActionAgent captures all stdout/stderr but commits only bounded excerpts through `.action-agent/result.json`.
+Read the referenced `output_path` only when `output_committed = true`. If `output_committed = false` and `output_artifact = true`, the full log is available as a GitHub Actions artifact, not as a repository file.
+
+AI agents may opt in to full log commits by setting task-level `[output].commit = true` or global `commit_outputs = true`, but only when the full log is genuinely needed, safe, and reasonably small. By default, ActionAgent captures all stdout/stderr but commits only bounded excerpts through `.action-agent/result.json` and posts bounded issue comments.
+
+## Issue comment behavior
+
+Issue comments are a lightweight UI, not the complete log store. The complete log remains in the artifact or in the committed `output_path` only when configured.
+
+The comment system is configured in `.action-agent/run.toml`:
+
+```toml
+[comment]
+enabled = true
+issue = 1
+marker = "<!-- action-agent-result:v1 -->"
+mode = "excerpt" # summary / excerpt / full
+max_comment_bytes = 10000
+success_excerpt_bytes = 6000
+failed_excerpt_bytes = 12000
+
+[comment.cleanup]
+enabled = true
+max_count = 10
+max_total_bytes = 60000
+target_total_bytes = 55000
+min_keep = 3
+delete_only_marked = true
+```
+
+The cleanup rule is intentionally conservative:
+
+1. Only comments containing the configured marker may be deleted.
+2. Human comments must never be deleted by ActionAgent cleanup.
+3. If marked result comments exceed `max_count`, delete the oldest marked comments first.
+4. If marked result comments do not exceed `max_count` but their total UTF-8 size exceeds `max_total_bytes`, delete the oldest marked comments until total size is near `target_total_bytes`.
+5. Never delete comments from the middle of the retained history; keep the newest marked comments as one continuous window.
+6. Keep at least `min_keep` marked result comments when possible.
+
+When reporting results to the user, prefer this order:
+
+```text
+latest marked issue comment
+.action-agent/result.json
+GitHub Actions artifact
+committed output_path, only when output_committed=true
+```
 
 ## Safety
 
@@ -181,7 +276,10 @@ When the user asks to verify, test, inspect, benchmark, build, request, reproduc
 7. Use `[commands].run` for the executable entry point.
 8. If task logic is in Python, make `[commands].run` invoke the task file explicitly.
 9. Save useful output under `.action-agent/output/`.
-10. Keep the task explicit, bounded, and safe.
+10. After the workflow finishes, read the latest marked issue comment first when comments are enabled.
+11. Fall back to `.action-agent/result.json` when the comment is absent, stale, truncated, or insufficient.
+12. Use the artifact or committed `output_path` only for complete logs or downloadable files.
+13. Keep the task explicit, bounded, and safe.
 
 ## More detail
 

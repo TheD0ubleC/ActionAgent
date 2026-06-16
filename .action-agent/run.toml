@@ -49,3 +49,22 @@ artifact = true
 commit = false
 excerpt_bytes = 20000
 failed_excerpt_bytes = 100000
+
+[comment]
+# Human-readable result comments. Comments are a lightweight UI; full logs stay in artifacts.
+enabled = true
+issue = 1
+marker = "<!-- action-agent-result:v1 -->"
+mode = "excerpt" # summary / excerpt / full
+artifact_name = "action-agent-output"
+max_comment_bytes = 10000
+success_excerpt_bytes = 6000
+failed_excerpt_bytes = 12000
+
+[comment.cleanup]
+enabled = true
+max_count = 10
+max_total_bytes = 60000
+target_total_bytes = 55000
+min_keep = 3
+delete_only_marked = true

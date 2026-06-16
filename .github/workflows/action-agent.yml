@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  actions: read
 
 concurrency:
   group: action-agent-${{ github.ref }}
@@ -72,3 +74,9 @@ jobs:
             .action-agent/result.json
             .action-agent/output/
           if-no-files-found: ignore
+
+      - name: Post ActionAgent issue comment
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python .github/action_agent_commenter.py
