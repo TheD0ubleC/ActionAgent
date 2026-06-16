@@ -8,7 +8,7 @@
 
 # ActionAgent
 
-<img src="https://img.shields.io/github/license/TheD0ubleC/ActionAgent?style=flat-square" />
+<img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
 <img src="https://img.shields.io/github/forks/TheD0ubleC/ActionAgent?style=flat-square" />
 
 [クイックスタート](#始め方) · [プロンプト例](#プロンプト例) · [安全上の注意と回避策](#安全上の注意と回避策) · [トラブルシューティング](#トラブルシューティング) · [今後の目標](#今後の目標)
@@ -130,13 +130,13 @@ ChatGPT が学習完了を報告したら、続けてタスク実行の依頼を
 
 ## プロンプト例
 
-| 目的 | プロンプト |
-| ---- | ---------- |
-| ネットワークテスト | `ActionAgent を使って www.google.com に ping し、ネットワークが疎通しているか確認してください。` |
+| 目的               | プロンプト                                                                                                                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ネットワークテスト | `ActionAgent を使って www.google.com に ping し、ネットワークが疎通しているか確認してください。`                                                            |
 | プロジェクトビルド | `ActionAgent を使って https://github.com/Kinal-Lang/Kinal を clone し、Linux x86_64 ビルドを行い、ビルド成果物を artifact としてアップロードしてください。` |
-| リポジトリのテスト | `ActionAgent を使ってこのリポジトリを clone し、依存関係をインストールしてテストを実行し、ログを .action-agent/output/ に保存してください。` |
-| Runner 環境確認 | `ActionAgent を使って現在の Runner のシステム情報と、Python、Node、Git、Docker が利用可能かを確認してください。` |
-| サーバー運用 | `ActionAgent を使い、GitHub Secrets に設定された SSH 情報で私の Ubuntu サーバーに接続し、CPU、メモリ、ディスク、負荷状況を確認してください。` |
+| リポジトリのテスト | `ActionAgent を使ってこのリポジトリを clone し、依存関係をインストールしてテストを実行し、ログを .action-agent/output/ に保存してください。`                |
+| Runner 環境確認    | `ActionAgent を使って現在の Runner のシステム情報と、Python、Node、Git、Docker が利用可能かを確認してください。`                                            |
+| サーバー運用       | `ActionAgent を使い、GitHub Secrets に設定された SSH 情報で私の Ubuntu サーバーに接続し、CPU、メモリ、ディスク、負荷状況を確認してください。`               |
 
 ## Secrets で機密情報を扱う
 

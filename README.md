@@ -8,7 +8,7 @@
 
 # ActionAgent
 
-<img src="https://img.shields.io/github/license/TheD0ubleC/ActionAgent?style=flat-square" />
+<img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
 <img src="https://img.shields.io/github/forks/TheD0ubleC/ActionAgent?style=flat-square" />
 
 [Quick Start](#how-to-start) · [Example Prompts](#example-prompts) · [Safety Guidance and Avoidance](#safety-guidance-and-avoidance) · [Troubleshooting](#troubleshooting) · [Future Goals](#future-goals)
@@ -123,7 +123,7 @@ Then search for the ActionAgent repository. If it shows that the index hasn't be
 Send:
 
 ```text
-@GitHub Please read the AGENTS.md in the ActionAgent repository and learn how to use ActionAgent.  
+@GitHub Please read the AGENTS.md in the ActionAgent repository and learn how to use ActionAgent.
 Once you've finished learning, please report back to me directly—don't execute any tasks or modify any files.
 ```
 
@@ -131,13 +131,13 @@ After ChatGPT reports that it has finished learning, you can send additional req
 
 ## Example prompts
 
-| Need | Prompt |
-| ---- | ------ |
-| Network test | `Use ActionAgent to ping www.google.com and check whether the network is reachable.` |
-| Project build | `Use ActionAgent to clone https://github.com/Kinal-Lang/Kinal, perform a Linux x86_64 build, and upload the build output as an artifact.` |
-| Repository testing | `Use ActionAgent to clone this repository, install dependencies, run tests, and save the logs to .action-agent/output/.` |
-| Runner environment check | `Use ActionAgent to check the current Runner system information and whether Python, Node, Git, and Docker are available.` |
-| Server operations | `Use ActionAgent to connect to my Ubuntu server using SSH information configured in GitHub Secrets, and check CPU, memory, disk, and load usage.` |
+| Need                     | Prompt                                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Network test             | `Use ActionAgent to ping www.google.com and check whether the network is reachable.`                                                              |
+| Project build            | `Use ActionAgent to clone https://github.com/Kinal-Lang/Kinal, perform a Linux x86_64 build, and upload the build output as an artifact.`         |
+| Repository testing       | `Use ActionAgent to clone this repository, install dependencies, run tests, and save the logs to .action-agent/output/.`                          |
+| Runner environment check | `Use ActionAgent to check the current Runner system information and whether Python, Node, Git, and Docker are available.`                         |
+| Server operations        | `Use ActionAgent to connect to my Ubuntu server using SSH information configured in GitHub Secrets, and check CPU, memory, disk, and load usage.` |
 
 ## Handling sensitive information with Secrets
 

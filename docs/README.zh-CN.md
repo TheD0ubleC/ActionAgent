@@ -8,7 +8,7 @@
 
 # ActionAgent
 
-<img src="https://img.shields.io/github/license/TheD0ubleC/ActionAgent?style=flat-square" />
+<img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
 <img src="https://img.shields.io/github/forks/TheD0ubleC/ActionAgent?style=flat-square" />
 
 [快速开始](#如何开始) · [示例提示词](#示例提示词) · [安全建议与规避](#安全建议与规避) · [故障排查](#故障排查) · [未来目标](#未来目标)

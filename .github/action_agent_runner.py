@@ -475,10 +475,15 @@ def output_size(path: Path | None) -> int | None:
     return path.stat().st_size
 
 
+def workflow_run_id() -> str | None:
+    run_id = os.environ.get("GITHUB_RUN_ID", "").strip()
+    return run_id or None
+
+
 def workflow_run_url() -> str | None:
     server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com").strip().rstrip("/")
     repository = os.environ.get("GITHUB_REPOSITORY", "").strip()
-    run_id = os.environ.get("GITHUB_RUN_ID", "").strip()
+    run_id = workflow_run_id()
 
     if not repository or not run_id:
         return None
@@ -499,6 +504,7 @@ def main() -> int:
         "version": 1,
         "started_at": run_started,
         "finished_at": None,
+        "workflow_run_id": workflow_run_id(),
         "workflow_run_url": workflow_run_url(),
         "status": "running",
         "failed": False,

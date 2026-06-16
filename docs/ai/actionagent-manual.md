@@ -375,7 +375,6 @@ Runtime directories may be created automatically:
 
 They are normally ignored by Git.
 
-
 ## Secret injection details
 
 GitHub repository secrets do not automatically appear in task environments. They must be mapped in `.github/workflows/action-agent.yml`, specifically in the `Run ActionAgent` step.
@@ -403,28 +402,70 @@ If the user says a secret named `SSH` contains `name@host:port`, and another sec
 
 ## Polling details for ChatGPT-style agents
 
-After enabling a task with `run = true` and committing it, poll in short explicit steps. The safest waiting primitive is a single shell command:
+After enabling a task with `run = true` and committing it, the agent should remain in the conversation and poll until the run is complete and a fresh result can be read. Do not trigger the task and stop with a partial status unless the configured maximum wait has been reached.
+
+The polling wait is an action performed by the agent itself. It is **not** a GitHub connector operation. The GitHub connector should be used to read repository files, comments, runs, and artifacts after waiting; it should not be treated as the place where `sleep` runs.
+
+Operationally:
+
+1. Trigger ActionAgent by committing the task change.
+2. Estimate how long the task should take.
+3. Call the agent's own available execution tool to wait with exactly one short command, usually `sleep 10`.
+4. Repeat that local wait call enough times to cover the estimate.
+5. Only then call GitHub tools to inspect `run`, comments, `result.json`, or artifacts.
+
+Use short waits, but not necessarily a status check after every single wait. First estimate the task duration:
+
+- quick metadata / file checks: usually 10 seconds before checking
+- remote SSH checks, package installs, short builds, or test runs: usually 20-40 seconds before checking
+- larger builds or downloads: choose a bounded initial estimate, then keep polling in short batches
+
+The safest waiting primitive is one separate local execution call:
 
 ```bash
 sleep 10
 ```
 
-Then inspect repository state again. Repeat only if needed.
-
-Do not use long sleeps such as `sleep 30`, `sleep 50`, or `sleep 60` in one tool call. Do not chain many sleeps in one shell command, such as `sleep 10 && sleep 10 && sleep 10`. Do not place long local polling loops in one Python process. Short single-step polling is more reliable and lets the agent observe state between waits.
-
-Good completion signals are:
+For a 30 second estimate, run three separate wait tool calls, not one chained command:
 
 ```text
-run=true changed back to run=false in the task metadata
+local execution call 1: sleep 10   # returns before the next action
+local execution call 2: sleep 10   # returns before the next action
+local execution call 3: sleep 10   # returns before the next action
+then inspect repository / issue / artifact state with GitHub tools
+```
+
+The agent must actually perform these waits using its own available shell, Python, container, or code-execution tool. It must not merely write `sleep 10` in the answer, and it must not add sleep commands to the repository or workflow just to simulate polling.
+
+Do not use long sleeps such as `sleep 30`, `sleep 50`, or `sleep 60` in one tool call. Do not chain many sleeps in one shell command, such as `sleep 10 && sleep 10 && sleep 10`. Do not place long local polling loops in one Python process. The reliable pattern is multiple short tool calls, each containing exactly one `sleep 10`, followed by inspection after the estimated batch.
+
+If the agent has no local execution/wait tool available at all, it should say so explicitly and ask the user to return after a short delay. It should not pretend that a GitHub connector read itself performed the wait.
+
+Primary completion check:
+
+```text
+run=true changed back to run=false in the enabled task metadata
+```
+
+When `run = false`, continue to read results. If the visible result is stale or missing, do not stop immediately; wait more separate `sleep 10` steps and retry result reading. Comments, `result.json`, and artifacts can refresh at slightly different times.
+
+Good result signals are:
+
+```text
 a fresh issue comment containing <!-- action-agent-result:v1 -->
 a fresh .action-agent/result.json written by the latest run
 a completed workflow run with the expected artifact
+a committed output_path, only when output_committed=true
 ```
 
 If these signals disagree, prefer the freshest marked issue comment for human-readable status, then use `.action-agent/result.json` for structured fallback, and use artifacts for complete logs.
 
-If the visible result appears stale, wait one more `sleep 10` and retry the result read. Stop after the user-requested maximum wait time, or after a reasonable bounded number of polling attempts, and report that the run may still be pending or failed to update.
+Stop polling only when one of these is true:
+
+- completion is confirmed and a fresh result is readable
+- the task clearly failed and the failure result is readable
+- the user-specified maximum wait was reached
+- a reasonable bounded maximum was reached and the agent reports that the run may still be pending or failed to update
 
 ## Issue comment output configuration
 

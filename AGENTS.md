@@ -93,17 +93,25 @@ Use `reset_on = "always"` for one-shot tasks. If task logic is Python, `[command
 
 ## Polling after triggering
 
-After setting `run = true` and committing it, poll instead of assuming completion.
+After setting `run = true` and committing it, keep the conversation alive and wait for completion instead of stopping early.
 
-Preferred ChatGPT-style loop:
+**The wait is performed in the agent's own available execution environment, not inside GitHub and not by the GitHub connector.** If the agent has a local shell, Python, container, or code-execution tool, it must actually call that tool to wait. Do not merely show `sleep 10` in the reply, and do not write sleep commands into the repository just to poll.
+
+Estimate the initial wait from the task before the first status check. For a task likely to take about 30 seconds, perform three separate local wait tool calls:
 
 ```bash
 sleep 10
 ```
 
-Then re-read the enabled task file. If `run = true`, wait another single `sleep 10` and check again. Once `run = false`, read results.
+Then call another separate `sleep 10`, then another separate `sleep 10`. These are waiting calls only; do not query GitHub between them unless there is a specific reason. Only after the estimated wait, re-read the enabled task file and check whether `run` reset from `true` to `false`.
 
-Do not use `sleep 30`, `sleep 50`, `sleep 60`, chained sleeps, or long local Python sleep loops. One short wait per polling step is safer and lets the agent observe state between waits.
+If `run = true`, the task is probably still running. Estimate another short wait batch, run one or more separate `sleep 10` waits in the agent's own environment, then check again. If `run = false`, continue to result reading.
+
+If the task appears complete but the issue comment, `result.json`, artifact, or committed output is not fresh yet, wait with additional separate `sleep 10` calls and retry until the result is readable.
+
+Do not use `sleep 30`, `sleep 50`, `sleep 60`, chained sleeps, or long local Python sleep loops. Each wait should be one short local execution call that returns before the next action.
+
+Do not end the reply immediately after triggering a task just because results are not visible yet. Continue polling until completion, a fresh result is readable, or the user-specified / reasonable maximum wait is reached. If the agent truly has no way to perform local waits, it must say that limitation explicitly instead of pretending the task is complete or stopping early.
 
 Good completion signals:
 
@@ -113,8 +121,6 @@ fresh issue comment containing <!-- action-agent-result:v1 -->
 fresh .action-agent/result.json
 completed workflow run with expected artifact
 ```
-
-If the visible result appears stale, wait one more `sleep 10` and retry. Stop after the user-requested maximum wait time or a reasonable bounded number of attempts.
 
 ## Result reading order
 
@@ -144,6 +150,55 @@ By default `[comment].issue = "auto"`, so ActionAgent finds or creates an `Actio
 If no marked comment exists, do not assume task failure. Fall back to `.action-agent/result.json` and artifacts.
 
 `comment_excerpt` is the short human-readable result. `output_excerpt` in `result.json` is the longer diagnostic fallback. Both are generated directly from the complete log; one is not truncated from the other. Full logs live in artifacts unless output commits are explicitly enabled.
+
+## Artifact configuration and download
+
+Artifacts are the default full-log channel. When a task should produce downloadable output, set the task output like this:
+
+```toml
+[output]
+mode = "both"
+path = ".action-agent/output/task-name.log"
+artifact = true
+commit = false
+```
+
+Defaults in `.action-agent/run.toml` already use `upload_artifact = true`, `[output].artifact = true`, and `[output].commit = false`. This keeps full logs out of git history while still making them downloadable.
+
+The workflow uploads one artifact named:
+
+```text
+action-agent-output
+```
+
+That artifact includes:
+
+```text
+.action-agent/result.json
+.action-agent/output/
+```
+
+If the artifact name is changed, keep these in sync:
+
+```text
+.github/workflows/action-agent.yml -> Upload ActionAgent output -> name
+.action-agent/run.toml -> [comment].artifact_name
+```
+
+After completion, use `result.json` to locate the correct run and output:
+
+```text
+workflow_run_id or workflow_run_url
+tasks[].output_artifact
+tasks[].output_path
+tasks[].output_size_bytes
+```
+
+If `output_artifact = true`, fetch the artifacts for that workflow run, choose the artifact named `action-agent-output` unless configured otherwise, download it, and give the user the downloadable file link. Inside the zip, the complete task log is under the task's `output_path`.
+
+If the marked issue comment or `result.json` says an artifact exists but the artifact list/download is not fresh yet, wait with separate local `sleep 10` calls and retry. Do not stop after saying only that the artifact is not visible yet.
+
+Use committed `output_path` only when `output_committed = true`. Otherwise the full output is expected in the artifact, not in repository files.
 
 ## Issue comment cleanup
 
