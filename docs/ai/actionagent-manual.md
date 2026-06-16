@@ -33,7 +33,22 @@ The runner then:
 
 Do not rely on live GitHub Actions log streams as the primary result channel.
 
-Read `.action-agent/result.json` after ActionAgent runs. It records:
+ActionAgent treats captured output as one source with three projections:
+
+```text
+full task log -> result excerpt in .action-agent/result.json
+full task log -> comment excerpt in the issue result comment
+full task log -> artifact or committed output file when enabled
+```
+
+Prefer this reading order:
+
+1. Latest marked issue comment containing `<!-- action-agent-result:v1 -->`.
+2. `.action-agent/result.json`.
+3. GitHub Actions artifact.
+4. Committed `output_path`, only when `output_committed = true`.
+
+`result.json` records:
 
 - overall `status`
 - whether any task `failed`
@@ -41,11 +56,15 @@ Read `.action-agent/result.json` after ActionAgent runs. It records:
 - task `exit_code`
 - task `output_path`
 - whether output exists, is committed, or is artifact-only
-- output size and excerpt size
-- `output_excerpt`
+- output size and excerpt metadata
+- `output_excerpt` for diagnostic fallback
+- `comment_excerpt` for issue comment rendering
+- whether each excerpt was truncated
 - whether the task run flag was reset
 
-Use `output_excerpt` first. Read `output_path` only when `output_committed = true`. When `output_committed = false` and `output_artifact = true`, the full log is in the GitHub Actions artifact.
+`comment_excerpt` and `output_excerpt` are both generated directly from the complete task log. The comment excerpt is not produced by truncating the result excerpt.
+
+Read `output_path` only when `output_committed = true`. When `output_committed = false` and `output_artifact = true`, the full log is in the GitHub Actions artifact.
 
 ## One-shot task template
 
@@ -355,3 +374,150 @@ Runtime directories may be created automatically:
 ```
 
 They are normally ignored by Git.
+
+
+## Secret injection details
+
+GitHub repository secrets do not automatically appear in task environments. They must be mapped in `.github/workflows/action-agent.yml`, specifically in the `Run ActionAgent` step.
+
+When a user request mentions GitHub Secrets, SSH credentials stored in Secrets, tokens stored in Secrets, or secret-backed environment variables, use this workflow:
+
+1. Inspect `.github/workflows/action-agent.yml`.
+2. Find the `Run ActionAgent` step.
+3. Check whether each required environment variable is already mapped in that step.
+4. If a mapping is missing and the user supplied the exact GitHub Secret name, edit only that step's secret injection area.
+5. Only after the mapping is correct, create or update `.action-agent/scratch.py` or `.action-agent/tasks/*.py`.
+
+Use mappings like:
+
+```yaml
+env:
+  MY_SECRET: ${{ secrets.MY_SECRET }}
+```
+
+Do not leave an empty `env:` block. If no secrets are mapped, the workflow should contain only comments and the `run:` command.
+
+Never write secret values into workflow files, task files, docs, logs, artifacts, issue comments, or `[env]` metadata. Map only user-provided secret names, preserving spelling and case. Do not invent secret names and do not try to discover secret values.
+
+If the user says a secret named `SSH` contains `name@host:port`, and another secret named `SSH_PRIVATE_KEY` contains the key, map exactly `SSH` and `SSH_PRIVATE_KEY` unless the user asks for different environment variable names.
+
+## Polling details for ChatGPT-style agents
+
+After enabling a task with `run = true` and committing it, poll in short explicit steps. The safest waiting primitive is a single shell command:
+
+```bash
+sleep 10
+```
+
+Then inspect repository state again. Repeat only if needed.
+
+Do not use long sleeps such as `sleep 30`, `sleep 50`, or `sleep 60` in one tool call. Do not chain many sleeps in one shell command, such as `sleep 10 && sleep 10 && sleep 10`. Do not place long local polling loops in one Python process. Short single-step polling is more reliable and lets the agent observe state between waits.
+
+Good completion signals are:
+
+```text
+run=true changed back to run=false in the task metadata
+a fresh issue comment containing <!-- action-agent-result:v1 -->
+a fresh .action-agent/result.json written by the latest run
+a completed workflow run with the expected artifact
+```
+
+If these signals disagree, prefer the freshest marked issue comment for human-readable status, then use `.action-agent/result.json` for structured fallback, and use artifacts for complete logs.
+
+If the visible result appears stale, wait one more `sleep 10` and retry the result read. Stop after the user-requested maximum wait time, or after a reasonable bounded number of polling attempts, and report that the run may still be pending or failed to update.
+
+## Issue comment output configuration
+
+Issue comments are a lightweight UI, not the complete log store. The complete log remains in the artifact or in the committed `output_path` only when configured.
+
+The comment system is configured in `.action-agent/run.toml`:
+
+```toml
+[comment]
+enabled = true
+issue = "auto" # issue number or "auto"
+auto_create_issue = true
+auto_issue_title = "ActionAgent"
+auto_issue_marker = "<!-- action-agent-issue:v1 -->"
+auto_issue_body = "ActionAgent run results and summaries. If issue comments are unavailable, read .action-agent/result.json and workflow artifacts instead."
+auto_issue_state = "open" # open / closed / all
+auto_issue_labels = []
+marker = "<!-- action-agent-result:v1 -->"
+mode = "excerpt" # summary / excerpt / full
+artifact_name = "action-agent-output"
+max_comment_bytes = 10000
+success_excerpt_bytes = 6000
+failed_excerpt_bytes = 12000
+
+[comment.cleanup]
+enabled = true
+max_count = 10
+max_total_bytes = 60000
+target_total_bytes = 55000
+min_keep = 3
+delete_only_marked = true
+```
+
+`issue = "auto"` means ActionAgent will first look for a non-PR issue titled `auto_issue_title`, preferably one whose body contains `auto_issue_marker`. If none exists and `auto_create_issue = true`, it creates that control issue.
+
+If issue creation or commenting fails, the workflow should still succeed. Agents must use `result.json` plus artifacts as the fallback result channel.
+
+Marked ActionAgent result comments contain:
+
+```text
+<!-- action-agent-result:v1 -->
+```
+
+The automatically managed control issue contains:
+
+```text
+<!-- action-agent-issue:v1 -->
+```
+
+When reading comments, ignore unmarked human discussion unless the user asks for conversation context. From newest to oldest, find the latest comment containing the result marker above and use it as the current run summary.
+
+## Issue comment cleanup details
+
+The cleanup rule is intentionally conservative:
+
+1. Only comments containing the configured result marker may be deleted.
+2. Human comments must never be deleted by ActionAgent cleanup.
+3. If marked result comments exceed `max_count`, delete the oldest marked comments first.
+4. If marked result comments do not exceed `max_count` but their total UTF-8 size exceeds `max_total_bytes`, delete the oldest marked comments until total size is near `target_total_bytes`.
+5. Never delete comments from the middle of the retained history; keep the newest marked comments as one continuous window.
+6. Keep at least `min_keep` marked result comments when possible.
+7. If cleanup configuration is invalid, clamp it conservatively instead of deleting aggressively.
+8. If the marker is empty or missing, disable cleanup rather than risk deleting human comments.
+
+This preserves recent context while preventing issue comment history from becoming an unbounded log database.
+
+## Output excerpt details
+
+ActionAgent captures complete stdout/stderr to the configured output log first. The result and comment excerpts are projections from that complete log:
+
+```text
+complete output log -> output_excerpt for result.json
+complete output log -> comment_excerpt for issue UI
+complete output log -> artifact or committed output path
+```
+
+The comment excerpt should not be generated by truncating `output_excerpt`. This prevents nested truncation from destroying useful diagnostic information.
+
+Use these defaults unless the user asks otherwise:
+
+```toml
+[output]
+mode = "both"
+artifact = true
+commit = false
+excerpt_bytes = 20000
+failed_excerpt_bytes = 100000
+
+[comment]
+mode = "excerpt"
+success_excerpt_bytes = 6000
+failed_excerpt_bytes = 12000
+max_comment_bytes = 10000
+```
+
+`output_excerpt` is longer and intended for structured fallback and diagnostics. `comment_excerpt` is shorter and intended for issue UI. Full output belongs in the artifact unless the user explicitly asks to commit it and it is safe and reasonably small.

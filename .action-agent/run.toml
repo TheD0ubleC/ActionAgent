@@ -52,8 +52,15 @@ failed_excerpt_bytes = 100000
 
 [comment]
 # Human-readable result comments. Comments are a lightweight UI; full logs stay in artifacts.
+# Use an issue number to force a specific issue, or "auto" to find/create a control issue.
 enabled = true
-issue = 1
+issue = "auto"
+auto_create_issue = true
+auto_issue_title = "ActionAgent"
+auto_issue_marker = "<!-- action-agent-issue:v1 -->"
+auto_issue_body = "ActionAgent run results and summaries. If issue comments are unavailable, read .action-agent/result.json and workflow artifacts instead."
+auto_issue_state = "open" # open / closed / all
+auto_issue_labels = []
 marker = "<!-- action-agent-result:v1 -->"
 mode = "excerpt" # summary / excerpt / full
 artifact_name = "action-agent-output"
