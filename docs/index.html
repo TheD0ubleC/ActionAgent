@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>ActionAgent Docs</title>
+  <meta name="description" content="ActionAgent documentation rendered from repository README files.">
+  <link rel="stylesheet" href="./assets/website/styles.css">
+</head>
+<body>
+
+  <div class="page-shell">
+    <header class="topbar">
+      <a id="brandLink" class="brand" href="./" aria-label="ActionAgent Docs home">
+        <div class="brand-text">
+          <strong>ActionAgent Docs</strong>
+        </div>
+      </a>
+
+      <nav id="topActions" class="top-actions" aria-label="Primary navigation">
+        <button id="tocToggle" class="icon-button toc-toggle" type="button" aria-controls="tocDrawer" aria-expanded="false" aria-label="Open page outline"><span aria-hidden="true">☰</span></button>
+        <div id="languageSwitcher" class="language-switcher" aria-label="Language switcher">
+          <label id="languageLabel" class="picker-label" for="languageSelect">Language</label>
+          <div class="select-wrap">
+            <select id="languageSelect" class="language-select">
+              <option value="en">English</option>
+              <option value="zh-CN">简体中文</option>
+              <option value="ja">日本語</option>
+            </select>
+            <span class="select-arrow" aria-hidden="true">▾</span>
+          </div>
+        </div>
+        <a id="manualLink" class="ghost-button manual-link" href="#/manual" aria-label="AI Manual">AI Manual</a>
+        <button id="themeToggle" class="ghost-button theme-toggle" type="button">Dark</button>
+        <a class="primary-button" href="https://github.com/TheD0ubleC/ActionAgent" target="_blank" rel="noreferrer">GitHub</a>
+      </nav>
+    </header>
+
+    <div class="layout">
+      <aside id="tocDrawer" class="sidebar" aria-label="Documentation navigation">
+        <div class="sidebar-drawer-head">
+          <span id="drawerTitle">Page outline</span>
+          <button id="tocClose" class="sidebar-close" type="button" aria-label="Close outline">×</button>
+        </div>
+        <div class="toc-card">
+          <p id="tocEyebrow" class="eyebrow">On this page</p>
+          <nav id="toc" class="toc" aria-label="Table of contents"></nav>
+        </div>
+      </aside>
+      <div id="tocBackdrop" class="toc-backdrop" hidden></div>
+
+      <main class="content-panel reader" aria-live="polite">
+        <div class="reader-toolbar">
+          <div>
+            <p id="docKind" class="eyebrow">Documentation</p>
+            <h1 id="docTitle">Loading...</h1>
+          </div>
+        </div>
+
+        <article id="content" class="markdown-body">
+          <div id="contentLoading" class="loading">Loading local documentation...</div>
+        </article>
+      </main>
+    </div>
+  </div>
+
+  <script src="./assets/website/app.js"></script>
+</body>
+</html>
